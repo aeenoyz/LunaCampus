@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>루나캠퍼스 · 웹 보안 실습실</title>
+<!--
+  ╔══════════════════════════════════════════════════════════╗
+  ║  루나캠퍼스(LUNA Campus)는 실존하지 않는 가상의 서비스입니다. ║
+  ║  이 파일은 웹 보안 교육용으로 '일부러' 취약하게 만들었습니다.  ║
+  ║                                                          ║
+  ║  개발자도구를 열어본 학생에게 :                              ║
+  ║  잘 왔다. 여기서부터가 진짜 시작이야.                        ║
+  ╚══════════════════════════════════════════════════════════╝
+-->
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2129; --line:#2d333b;
+    --tx:#e6edf3; --tx2:#9aa5b1; --tx3:#6e7681;
+    --acc:#58d6a8; --acc2:#3fb950; --warn:#f0a83c; --dang:#f85149;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    line-height:1.7; min-height:100vh; padding:0 16px 80px;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+
+  .legal{
+    background:#3d1d1d;border:1px solid #6b2b2b;border-left:4px solid var(--dang);
+    padding:14px 18px;margin:16px 0;border-radius:6px;font-size:.88rem;color:#ffc9c4;
+  }
+  .legal b{color:#ff8a80}
+
+  header{padding:26px 0 18px;border-bottom:1px solid var(--line);margin-bottom:24px}
+  .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo{
+    width:42px;height:42px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,#58d6a8,#2b7fd4);
+    display:grid;place-items:center;font-size:1.3rem
+  }
+  h1{font-size:1.5rem;letter-spacing:-.02em}
+  .tag{
+    font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;
+    background:#3a2a10;color:var(--warn);border:1px solid #5c4318;
+    padding:3px 9px;border-radius:20px
+  }
+  .sub{color:var(--tx2);font-size:.9rem;margin-top:6px}
+
+  .track{display:flex;gap:8px;margin:20px 0 28px;flex-wrap:wrap}
+  .node{
+    flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:11px 13px;transition:.25s
+  }
+  .node.on{border-color:var(--acc);background:#132b22}
+  .node.done{border-color:var(--acc2);opacity:.65}
+  .node .n{font-family:var(--mono);font-size:.68rem;color:var(--tx3);letter-spacing:.1em}
+  .node .t{font-size:.84rem;font-weight:600;margin-top:2px}
+  .node.done .t::after{content:" ✓";color:var(--acc2)}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:26px;margin-bottom:20px
+  }
+  .card h2{font-size:1.18rem;margin-bottom:4px}
+  .card .goal{color:var(--tx2);font-size:.9rem;margin-bottom:20px}
+  .divider{height:1px;background:var(--line);margin:20px 0}
+
+  input[type=text],input[type=password]{
+    background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+    padding:10px 13px;border-radius:7px;font-size:.92rem;width:100%;
+    font-family:var(--mono)
+  }
+  input:focus{outline:none;border-color:var(--acc)}
+  label{display:block;font-size:.82rem;color:var(--tx2);margin:14px 0 6px}
+  button{
+    background:var(--acc);color:#06281c;border:none;padding:10px 20px;
+    border-radius:7px;font-size:.9rem;font-weight:700;cursor:pointer;
+    font-family:inherit;transition:.15s
+  }
+  button:hover{filter:brightness(1.12)}
+  button.ghost{background:transparent;color:var(--tx2);border:1px solid var(--line);font-weight:500}
+  button.ghost:hover{color:var(--tx);border-color:var(--tx3);filter:none}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+
+  .msg{padding:11px 15px;border-radius:7px;font-size:.88rem;margin-top:14px;display:none}
+  .msg.bad{background:#3d1d1d;border:1px solid #6b2b2b;color:#ffb4ae;display:block}
+  .msg.ok{background:#12291f;border:1px solid #1f5c40;color:#7ee2b8;display:block}
+  .msg.note{background:#2a2410;border:1px solid #5c4318;color:#f0d79a;display:block}
+
+  .flag{
+    background:#0a2018;border:1px dashed var(--acc);border-radius:9px;
+    padding:18px;margin-top:18px;text-align:center
+  }
+  .flag .lb{font-size:.76rem;color:var(--tx2);letter-spacing:.06em}
+  .flag .code{
+    font-family:var(--mono);font-size:1.45rem;font-weight:700;
+    color:var(--acc);letter-spacing:.06em;margin-top:6px;user-select:all
+  }
+
+  .hints{margin-top:22px}
+  .hints .hd{font-size:.8rem;color:var(--tx3);margin-bottom:8px}
+  .hint{
+    background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:11px 14px;margin-bottom:8px;font-size:.87rem;color:var(--tx2)
+  }
+  .hint.locked{cursor:pointer;color:var(--tx3);font-style:italic}
+  .hint.locked:hover{border-color:var(--tx3)}
+
+  .def{background:#101a2b;border:1px solid #1f3352;border-left:4px solid #4a9eff;
+    border-radius:8px;padding:18px 20px;margin-top:18px}
+  .def h4{color:#79bbff;font-size:.95rem;margin-bottom:10px}
+  .def p{font-size:.88rem;color:#c3d4ea;margin-bottom:8px}
+  .def code{font-family:var(--mono);background:#0a1220;padding:2px 6px;
+    border-radius:4px;font-size:.84rem;color:#9ecbff}
+
+  .hidden{display:none}
+  .mono{font-family:var(--mono)}
+  .dim{color:var(--tx3);font-size:.82rem}
+  .console-out{
+    background:#08090c;border:1px solid var(--line);border-radius:8px;
+    padding:16px;font-family:var(--mono);font-size:.82rem;
+    white-space:pre-wrap;color:#a5d6ff;margin-top:14px;max-height:280px;overflow:auto
+  }
+  .qlog{background:#08090c;border:1px solid #3a2a10;border-radius:8px;padding:14px 16px;
+    font-family:var(--mono);font-size:.82rem;color:var(--warn);margin-top:14px;
+    white-space:pre-wrap;word-break:break-all;display:none}
+  .qlog.show{display:block}
+  .gb-board{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+  .gb-item{background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:9px 13px;font-size:.9rem}
+  .gb-item b{color:var(--acc)}
+  .profile-grid{display:grid;grid-template-columns:110px 1fr;gap:10px 16px;
+    font-size:.9rem;margin-top:8px}
+  .profile-grid dt{color:var(--tx2)}
+  .profile-grid dd{font-family:var(--mono)}
+  .jump{margin-top:34px;padding-top:22px;border-top:1px solid var(--line)}
+  .jump .row{margin-top:10px}
+  footer{margin-top:40px;color:var(--tx3);font-size:.8rem;text-align:center;
+    padding-top:20px;border-top:1px solid var(--line)}
+  @media(max-width:600px){.card{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="legal">
+  <b>⚠ 반드시 읽고 시작하세요.</b><br>
+  이 페이지는 수업용으로 <b>일부러 허술하게 만든 가상의 연습 사이트</b>입니다.
+  여기서 배운 방법을 <b>실제로 운영 중인 웹사이트에 시도하면 정보통신망법 위반(형사처벌 대상)</b>입니다.
+  허락받지 않은 시스템은 절대 건드리지 않습니다. 오늘 실습은 이 사이트 안에서만 합니다.
+</div>
+
+<header>
+  <div class="brand">
+    <div class="logo">🌙</div>
+    <div>
+      <h1>루나캠퍼스 <span class="tag">TRAINING LAB</span></h1>
+      <div class="sub">가상의 온라인 학습 플랫폼 · 실존하지 않는 서비스입니다</div>
+    </div>
+  </div>
+</header>
+
+<div class="track">
+  <div class="node on" id="nd1"><div class="n">MISSION 01</div><div class="t">보이지 않는 것</div></div>
+  <div class="node" id="nd2"><div class="n">MISSION 02</div><div class="t">따옴표 하나</div></div>
+  <div class="node" id="nd3"><div class="n">MISSION 03</div><div class="t">글이 코드가 될 때</div></div>
+  <div class="node" id="nd4"><div class="n">MISSION 04</div><div class="t">숫자를 바꾸면</div></div>
+  <div class="node" id="nd5"><div class="n">MISSION 05</div><div class="t">열쇠 찾기</div></div>
+</div>
+
+<!-- ══════════ MISSION 1 ══════════ -->
+<section class="card" id="s1">
+  <h2>MISSION 01 · 보이지 않는 것</h2>
+  <p class="goal">이 페이지 어딘가에 아직 공개되지 않은 <b>베타 기능</b>이 하나 잠들어 있습니다. 화면에는 안 보이지만, 정말 없는 걸까요?</p>
+
+  <div class="dim">📢 공지사항</div>
+  <p style="margin-top:6px">2026학년도 2학기 수강신청이 시작되었습니다. 기간 내 신청 바랍니다.</p>
+
+  <div class="row">
+    <button class="ghost">수강신청 하기</button>
+    <button class="ghost">시간표 보기</button>
+    <!-- 베타 기능: 검수 끝날 때까지 숨겨둠. QA 통과하면 style만 지우면 됨 -->
+    <button id="betaBtn" style="display:none" onclick="clearM1()">🔓 베타: 전체 성적 열람</button>
+  </div>
+
+  <div class="msg" id="m1msg"></div>
+  <div class="flag hidden" id="m1flag">
+    <div class="lb">MISSION 01 CLEAR — 이 코드를 활동지에 적으세요</div>
+    <div class="code" id="m1code"></div>
+  </div>
+
+  <div class="hints">
+    <div class="hd">힌트 (막혔을 때만 눌러보세요)</div>
+    <div class="hint locked" onclick="op(this,'키보드 F12 또는 Ctrl+Shift+I (Mac은 ⌘+⌥+I)를 눌러 개발자도구를 열어보세요.')">힌트 1 · 열기</div>
+    <div class="hint locked" onclick="op(this,'Elements(요소) 탭에서 위 버튼들 근처의 HTML을 살펴보세요. 회색으로 흐릿하게 표시된 줄이 있을 겁니다.')">힌트 2 · 열기</div>
+    <div class="hint locked" onclick="op(this,'display:none 이라는 부분이 보이나요? 그 줄을 지우거나 값을 inline-block 으로 바꾸면 버튼이 나타납니다.')">힌트 3 · 열기</div>
+  </div>
+
+  <div class="def hidden" id="d1">
+    <h4>🛡 방어 노트 · 왜 뚫렸나</h4>
+    <p><b>화면에서 숨기는 것은 보안이 아닙니다.</b> <code>display:none</code>, <code>hidden</code>은 사용자에게 안 보이게 할 뿐, 데이터는 이미 브라우저까지 전송된 상태입니다.</p>
+    <p><b>어떻게 막나:</b> 권한 없는 사용자에게는 <b>서버가 그 HTML 자체를 내려보내지 않아야</b> 합니다. 버튼을 숨기는 게 아니라, 버튼이 없는 페이지를 보내는 것입니다.</p>
+  </div>
+</section>
+
+<!-- ══════════ MISSION 2 · SQL Injection ══════════ -->
+<section class="card hidden" id="s2">
+  <h2>MISSION 02 · 따옴표 하나</h2>
+  <p class="goal">교직원 로그인입니다. 이번엔 <b>서버가</b> 비밀번호를 검사합니다. 그런데 그 서버가 여러분의 입력으로 <b>문장을 조립하는</b> 방식이 좀 위험해 보이네요. 비밀번호를 몰라도 들어갈 수 있을까요?</p>
+
+  <label for="sqlUser">아이디</label>
+  <input type="text" id="sqlUser" value="staff01" autocomplete="off">
+  <label for="sqlPass">비밀번호</label>
+  <input type="text" id="sqlPass" placeholder="비밀번호를 입력하세요" autocomplete="off">
+
+  <div class="row">
+    <button onclick="sqlLogin()">로그인</button>
+    <span class="dim">로그인을 시도하면 서버가 만든 쿼리가 아래에 기록됩니다</span>
+  </div>
+
+  <div class="qlog" id="qlog"></div>
+
+  <div class="msg" id="m2msg"></div>
+  <div class="flag hidden" id="m2flag">
+    <div class="lb">MISSION 02 CLEAR</div>
+    <div class="code" id="m2code"></div>
+  </div>
+
+  <div class="hints">
+    <div class="hd">힌트</div>
+    <div class="hint locked" onclick="op(this,'비밀번호 칸에 아무 글자나 넣고 로그인해 보세요. 아래 쿼리 로그에 여러분이 쓴 글자가 그대로 문장 안에 끼워지는 게 보입니다.')">힌트 1 · 열기</div>
+    <div class="hint locked" onclick="op(this,'쿼리는 ...AND pw=\'입력값\' 구조입니다. 만약 입력값이 따옴표로 그 문장을 먼저 닫아버리고, 뒤에 항상 참인 조건을 붙이면 어떻게 될까요?')">힌트 2 · 열기</div>
+    <div class="hint locked" onclick="op(this,'비밀번호 칸에 이렇게 넣어보세요:  \x27 OR \x271\x27=\x271   (작은따옴표, 공백, OR, 공백, 작은따옴표1작은따옴표=작은따옴표1). 또는 아이디 칸에  admin\x27 --  도 시도해 보세요.')">힌트 3 · 열기</div>
+  </div>
+
+  <div class="def hidden" id="d2">
+    <h4>🛡 방어 노트 · 왜 뚫렸나</h4>
+    <p><b>입력을 문자열로 이어붙여 쿼리를 만들면(SQL 인젝션)</b>, 사용자가 따옴표 하나로 문장 구조 자체를 부술 수 있습니다. <code>' OR '1'='1</code> 은 "비밀번호가 X 이거나, 아니면 1=1(항상 참)"이 되어 조건이 무력화됩니다.</p>
+    <p><b>어떻게 막나:</b> 입력을 문장에 섞지 말고 <b>매개변수(Prepared Statement)</b>로 분리합니다. <code>WHERE pw = ?</code> 처럼 자리표시자를 두면, 사용자가 무엇을 넣든 "값"으로만 취급되고 문장 구조는 절대 바뀌지 않습니다. 이게 SQL 인젝션의 근본 해결책입니다.</p>
+    <p class="dim" style="margin-bottom:0">참고 · <code>&lt;script&gt;</code>가 아니라 따옴표가 무기라는 점에 주목. 공격의 재료는 늘 "그 문맥에서 특별한 의미를 가진 문자"입니다.</p>
+  </div>
+</section>
+
+<!-- ══════════ MISSION 3 · XSS ══════════ -->
+<section class="card hidden" id="s3">
+  <h2>MISSION 03 · 글이 코드가 될 때</h2>
+  <p class="goal">방명록입니다. 누구나 글을 남길 수 있어요. 그런데 이 게시판은 여러분이 쓴 글을 <b>그대로 화면에 그려줍니다</b>. 글자만 쓸 수 있을까요, 아니면… 더 많은 걸 쓸 수 있을까요?</p>
+
+  <label for="gbInput">방명록에 남길 글</label>
+  <input type="text" id="gbInput" placeholder="여기에 글을 남겨보세요" autocomplete="off">
+  <div class="row">
+    <button onclick="postComment()">글 남기기</button>
+    <span class="dim">먼저 <span class="mono">&lt;b&gt;안녕&lt;/b&gt;</span> 같은 걸 넣어보면 뭔가 눈치챌 수 있어요</span>
+  </div>
+
+  <div class="gb-board" id="gbBoard"></div>
+
+  <div class="msg" id="m3msg"></div>
+  <div class="flag hidden" id="m3flag">
+    <div class="lb">MISSION 03 CLEAR</div>
+    <div class="code" id="m3code"></div>
+  </div>
+
+  <div class="hints">
+    <div class="hd">힌트</div>
+    <div class="hint locked" onclick="op(this,'<b>굵게</b> 를 넣어보세요. 글자가 진짜로 굵어지죠? 이 게시판은 여러분의 입력을 \x27글자\x27가 아니라 \x27HTML\x27로 해석하고 있습니다.')">힌트 1 · 열기</div>
+    <div class="hint locked" onclick="op(this,'HTML을 넣을 수 있다면, 실행되는 코드도 넣을 수 있지 않을까요? 이미지 태그가 로딩에 실패하면 onerror 라는 코드를 실행합니다.')">힌트 2 · 열기</div>
+    <div class="hint locked" onclick="op(this,'방명록에 이렇게 넣어보세요:  <img src=x onerror=\x22xssPwned()\x22>   존재하지 않는 이미지라 로딩에 실패하고, onerror 안의 코드가 실행됩니다.')">힌트 3 · 열기</div>
+  </div>
+
+  <div class="def hidden" id="d3">
+    <h4>🛡 방어 노트 · 왜 뚫렸나</h4>
+    <p><b>사용자 입력을 HTML로 해석해서 그리면(XSS)</b>, 글 대신 코드를 심을 수 있습니다. 저장형 XSS는 <b>그 글을 본 다른 사람의 브라우저에서도 실행</b>되기 때문에, 쿠키 탈취·계정 도용·가짜 화면 삽입으로 번집니다.</p>
+    <p><b>어떻게 막나:</b> 입력을 화면에 넣을 때 <b>이스케이프</b>합니다. <code>&lt;</code> 를 <code>&amp;lt;</code> 로 바꿔 "글자로만" 보이게 하는 것이죠. 코드에서는 <code>innerHTML</code> 대신 <code>textContent</code> 를 쓰고, 꼭 HTML을 허용해야 하면 DOMPurify 같은 검증기를 거칩니다.</p>
+    <p class="dim" style="margin-bottom:0">참고 · <code>&lt;script&gt;태그</code>를 넣으면 왜 실행이 안 됐을까요? innerHTML로 삽입된 script는 브라우저가 실행하지 않기 때문입니다. 그래서 실제 공격은 onerror 같은 이벤트 핸들러를 씁니다. 방어는 "태그 하나 막기"가 아니라 "입력을 코드로 해석하지 않기"여야 하는 이유입니다.</p>
+  </div>
+</section>
+
+<!-- ══════════ MISSION 4 · IDOR (실제 요청) ══════════ -->
+<section class="card hidden" id="s4">
+  <h2>MISSION 04 · 숫자를 바꾸면</h2>
+  <p class="goal">로그인에 성공했습니다. 이제 <b>내 성적표</b>를 조회할 수 있어요. 내 학번은 <b>1024</b>입니다. 조회하면 서버로 <b>진짜 요청</b>이 나갑니다 — 개발자도구 <b>Network(네트워크)</b> 탭을 열어두고 시작하세요. 그 요청 주소를 여러분이 바꿀 수 있다면?</p>
+
+  <label for="sid">조회할 학번</label>
+  <input type="text" id="sid" value="1024" autocomplete="off">
+  <div class="row">
+    <button onclick="viewRecord()">성적표 조회</button>
+    <span class="dim">또는 주소창에 <span class="mono">?id=1030</span> 을 붙여 새로고침 / 콘솔에서 <span class="mono">viewRecord(1030)</span></span>
+  </div>
+
+  <div class="console-out hidden" id="record"></div>
+
+  <div class="msg" id="m4msg"></div>
+  <div class="flag hidden" id="m4flag">
+    <div class="lb">MISSION 04 CLEAR</div>
+    <div class="code" id="m4code"></div>
+  </div>
+
+  <div class="hints">
+    <div class="hd">힌트</div>
+    <div class="hint locked" onclick="op(this,'개발자도구 Network(네트워크) 탭을 켠 채로 1024로 조회해 보세요. data/1024.json 같은 요청이 실제로 잡힙니다. 그 요청을 클릭하면 응답 내용도 볼 수 있어요.')">힌트 1 · 열기</div>
+    <div class="hint locked" onclick="op(this,'요청 주소에 내 학번이 그대로 들어있죠? 그럼 학번 칸의 1024를 1025, 1026, 1030 으로 바꿔 조회하면 어떤 요청이 나갈까요? 서버는 \x27이게 네 학번이 맞아?\x27 를 묻지 않습니다.')">힌트 2 · 열기</div>
+    <div class="hint locked" onclick="op(this,'내 것이 아닌 학번(예: 1030)을 조회하거나, 브라우저 주소창 끝에 ?id=1030 을 붙이고 엔터를 치면 남의 성적표가 열립니다.')">힌트 3 · 열기</div>
+  </div>
+
+  <div class="def hidden" id="d4">
+    <h4>🛡 방어 노트 · 왜 뚫렸나</h4>
+    <p><b>주소·번호만 바꿔 남의 데이터를 보는 취약점(IDOR)</b>입니다. 서버가 "요청에 적힌 학번"의 데이터를 그냥 내주고, "요청한 사람이 그 학번의 주인이 맞는지"를 확인하지 않았습니다. 실제로 대형 서비스에서 URL 숫자 하나로 수백만 명 개인정보가 새는 사고가 반복됩니다.</p>
+    <p><b>어떻게 막나:</b> 모든 데이터 조회에서 서버가 <b>"로그인한 사람 = 데이터 주인"인지 대조</b>해야 합니다. 요청에 적힌 번호를 믿지 말고, <b>세션에 저장된 본인 식별자</b>를 기준으로 조회하는 것이 원칙입니다.</p>
+    <p class="dim" style="margin-bottom:0">참고 · 방금 조회는 <b>진짜 네트워크 요청</b>이었습니다(Network 탭에서 확인). 실제 서비스의 IDOR도 정확히 이렇게 생겼습니다 — 클라이언트가 id로 조회하고, 서버가 소유권을 확인하지 않는 것.</p>
+  </div>
+</section>
+
+<!-- ══════════ MISSION 5 · Hardcoded Secret ══════════ -->
+<section class="card hidden" id="s5">
+  <h2>MISSION 05 · 열쇠 찾기</h2>
+  <p class="goal">전체 학생 명단을 조회하려면 <b>내부 API 키</b>가 필요합니다. 개발자는 그 키를 어디에 두었을까요? 설마… 이 페이지 안에?</p>
+
+  <label for="apikey">내부 API 키</label>
+  <input type="text" id="apikey" placeholder="LUNA-...." autocomplete="off">
+  <div class="row">
+    <button onclick="loadRoster()">전체 명단 조회</button>
+    <span class="dim">또는 콘솔에서 <span class="mono">loadRoster('키')</span> 직접 호출</span>
+  </div>
+
+  <div class="msg" id="m5msg"></div>
+  <div class="console-out hidden" id="roster"></div>
+  <div class="flag hidden" id="m5flag">
+    <div class="lb">MISSION 05 CLEAR — 최종 코드</div>
+    <div class="code" id="m5code"></div>
+  </div>
+
+  <div class="hints">
+    <div class="hd">힌트</div>
+    <div class="hint locked" onclick="op(this,'프론트엔드 코드는 예외 없이 전부 사용자에게 전달됩니다. 주석까지 포함해서요.')">힌트 1 · 열기</div>
+    <div class="hint locked" onclick="op(this,'개발자도구에서 Ctrl+F(페이지 내 검색)로 API_KEY 또는 LUNA- 를 찾아보세요. Sources 탭에서도 됩니다.')">힌트 2 · 열기</div>
+    <div class="hint locked" onclick="op(this,'스크립트 맨 위, TODO 라고 적힌 주석 근처를 보세요. 개발자가 나중에 옮기려고 적어둔 키가 그대로 남아 있습니다.')">힌트 3 · 열기</div>
+  </div>
+
+  <div class="def hidden" id="d5">
+    <h4>🛡 방어 노트 · 왜 뚫렸나</h4>
+    <p><b>프론트엔드에 비밀은 존재할 수 없습니다.</b> HTML·JS·주석·소스맵까지 전부 사용자 컴퓨터로 내려갑니다. 난독화를 해도 실행되는 이상 복원됩니다. 깃허브에 올라간 키가 자동 수집 봇에 털려 요금 폭탄을 맞는 사고가 매년 반복됩니다.</p>
+    <p><b>어떻게 막나:</b> 키는 <b>서버 환경변수</b>에 두고, 외부 API 호출은 서버가 대신(프록시)합니다. 이미 노출된 키는 지우는 걸로 끝나지 않고 <b>즉시 폐기하고 새로 발급</b>해야 합니다 — 커밋 기록에 영원히 남기 때문입니다.</p>
+  </div>
+</section>
+
+<!-- ══════════ 완료 ══════════ -->
+<section class="card hidden" id="done">
+  <h2>🎉 전 미션 클리어</h2>
+  <p class="goal">오늘 다섯 번 뚫었습니다. 방식은 달랐지만, 관통하는 원칙은 하나였어요.</p>
+  <p style="font-size:1.02rem;padding:16px;background:var(--panel2);border-radius:8px;border-left:3px solid var(--acc)">
+    <b>사용자가 보낸 것은 무엇도 그냥 믿지 마라.</b><br>
+    <span class="dim">화면에서 숨겼다고 안전하지 않고(1), 입력을 문장에 섞으면 문장이 부서지고(2), 입력을 코드로 해석하면 코드가 심기고(3), 요청에 적힌 번호를 믿으면 남의 것이 열리고(4), 코드에 넣은 비밀은 비밀이 아니다(5).</span>
+  </p>
+  <div class="divider"></div>
+  <h4 style="font-size:.98rem;margin-bottom:10px">🔧 이제 방어할 차례</h4>
+  <p style="font-size:.9rem;color:var(--tx2)">
+    5개 미션 각각에 대해 <b>"내가 루나캠퍼스 개발자라면 어떻게 고칠 것인가"</b>를 한 문장씩 써보세요.
+    각 미션의 방어 노트가 위에 모두 열려 있습니다. 노트를 그대로 베끼지 말고,
+    <b>이 서비스 상황에 맞게</b> 구체적으로 써야 합니다.
+  </p>
+  <div class="divider"></div>
+  <p class="dim">보너스 · 혹시 미션을 순서대로 풀지 않고 소스코드에서 정답을 미리 다 찾아냈나요?
+  그렇다면 축하합니다. 이 수업의 결론(미션 05)에 제일 먼저 도착한 겁니다.</p>
+</section>
+
+<!-- 진행 복구 -->
+<div class="jump">
+  <div class="dim">새로고침으로 진행 상황이 사라졌나요? 마지막에 받은 코드를 넣으면 그 지점으로 돌아갑니다.</div>
+  <div class="row">
+    <input type="text" id="jumpCode" placeholder="예: SHADOW-4417" style="max-width:280px">
+    <button class="ghost" onclick="doJump()">이어하기</button>
+  </div>
+  <div class="msg" id="jmsg"></div>
+</div>
+
+<footer>
+  루나캠퍼스 웹 보안 실습실 · 교육용 모의 환경 · 실존하지 않는 서비스입니다<br>
+  실제 서비스에 대한 무단 접근 시도는 정보통신망법 제48조 위반입니다.
+</footer>
+
+</div>
+
+<script>
+/* ============================================================
+   루나캠퍼스 — 클라이언트 로직 (교육용)
+   TODO(승우): API 키 서버로 옮기기. 일단 데모용이라 여기 박아둠.
+               const API_KEY = "LUNA-ADM-7X42-QKPZ";
+   ============================================================ */
+
+// 미션 클리어 코드 (조각으로 보관)
+const _fx = {
+  1: ["SHADOW","-4417"],
+  2: ["TABLE","FLIP","-8156"],
+  3: ["ALERT","BOX","-2290"],
+  4: ["NUMBER","SWAP","-3358"],
+  5: ["KEY","RING","-7760"]
+};
+function fx(n){ return _fx[n].join(""); }
+
+let state = 1;
+
+/* ── 공통 ── */
+function op(el, text){ el.classList.remove("locked"); el.textContent = text; }
+function val(id){ return document.getElementById(id).value; }
+function say(id, text, cls){
+  const e = document.getElementById(id);
+  e.textContent = text;
+  e.className = "msg " + (cls || "bad");
+}
+function unlock(n){
+  if (state > n) return;
+  document.getElementById("m"+n+"code").textContent = fx(n);
+  document.getElementById("m"+n+"flag").classList.remove("hidden");
+  document.getElementById("d"+n).classList.remove("hidden");
+  document.getElementById("nd"+n).classList.add("done");
+  document.getElementById("nd"+n).classList.remove("on");
+  state = n + 1;
+  if (n < 5){
+    document.getElementById("s"+state).classList.remove("hidden");
+    document.getElementById("nd"+state).classList.add("on");
+    setTimeout(()=>document.getElementById("s"+state).scrollIntoView({behavior:"smooth",block:"start"}), 550);
+  } else {
+    document.getElementById("done").classList.remove("hidden");
+    setTimeout(()=>document.getElementById("done").scrollIntoView({behavior:"smooth",block:"start"}), 550);
+  }
+}
+
+/* ── MISSION 1 · 숨김 요소 ── */
+function clearM1(){
+  say("m1msg","숨겨진 기능이 실행되었습니다. 이 버튼은 서버가 애초에 보내지 말았어야 했습니다.", "ok");
+  unlock(1);
+}
+
+/* ── MISSION 2 · SQL 인젝션 (모의) ── */
+const SQL_DB = [
+  { id:"staff01", pw:"moonlight2026", role:"staff" },
+  { id:"admin",   pw:"n0t_this_ea5y", role:"admin" }
+];
+function sqlLogin(){
+  const u = val("sqlUser"), p = val("sqlPass");
+  const query = "SELECT * FROM users WHERE id = '" + u + "' AND pw = '" + p + "'";
+
+  const log = document.getElementById("qlog");
+  log.classList.add("show");
+  log.textContent = "▶ 서버가 실행한 쿼리:\n" + query;
+
+  const s = (u + " " + p).toLowerCase();
+  const tautology =
+        /'\s*or\s*'1'\s*=\s*'1/.test(s) ||
+        /'\s*or\s*1\s*=\s*1/.test(s)   ||
+        /'\s*or\s*'[^']*'\s*=\s*'[^']*/.test(s);
+  const commented = /'\s*(--|#)/.test(s);
+
+  let matched = null;
+  if (tautology || commented){
+    matched = SQL_DB.find(r => r.role === "admin");
+  } else {
+    matched = SQL_DB.find(r => r.id === u && r.pw === p);
+  }
+
+  if (matched && (tautology || commented)){
+    say("m2msg", "로그인 성공 — " + matched.id + " (관리자). 비밀번호를 몰라도 조건 자체를 부숴서 들어왔습니다.", "ok");
+    unlock(2);
+  } else if (matched){
+    say("m2msg", "로그인 성공 — 정상 비밀번호로 들어왔네요. 하지만 이 미션의 목표는 '비밀번호를 몰라도' 들어가는 것입니다. 쿼리 로그를 보고 조건을 부숴보세요.", "note");
+  } else {
+    say("m2msg", "로그인 실패. 위 쿼리 로그에서 여러분의 입력이 문장 어디에 끼워지는지 확인하세요.", "bad");
+  }
+}
+
+/* ── MISSION 3 · XSS (실제 실행) ── */
+function xssPwned(){
+  say("m3msg", "여러분이 남긴 '글' 안의 코드가 실제로 실행되었습니다. 이게 XSS입니다.", "ok");
+  unlock(3);
+}
+function postComment(){
+  const t = val("gbInput");
+  if (!t.trim()) return;
+  const item = document.createElement("div");
+  item.className = "gb-item";
+  item.innerHTML = "<b>익명</b>: " + t;   // ⚠ 취약: 입력을 HTML로 해석
+  document.getElementById("gbBoard").prepend(item);
+  document.getElementById("gbInput").value = "";
+  if (/<script/i.test(t) && state === 3){
+    say("m3msg", "script 태그는 innerHTML로 삽입하면 실행되지 않습니다. 힌트: 로딩에 실패하는 이미지의 onerror를 이용해 보세요.", "note");
+  }
+}
+
+/* ── MISSION 4 · IDOR (실제 fetch 요청) ──
+   조회할 때마다 data/<학번>.json 으로 진짜 GET 요청이 나갑니다.
+   개발자도구 Network 탭에서 그대로 관찰됩니다.
+   ⚠ 취약점: 서버(여기선 정적 파일)가 "요청자 = 소유자"를 확인하지 않음.       */
+const MY_ID = "1024";  // 로그인한 본인 학번 (원칙대로면 이것만 조회 가능해야 함)
+
+async function viewRecord(sid){
+  const id = (typeof sid !== "undefined") ? String(sid) : val("sid").trim();
+  document.getElementById("sid").value = id;
+  const out = document.getElementById("record");
+  out.classList.remove("hidden");
+  out.textContent = "GET data/" + id + ".json  요청 중…";
+
+  try {
+    // ⚠ 취약: 소유권 확인 없이 요청받은 id를 그대로 조회
+    const res = await fetch("data/" + id + ".json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rec = await res.json();
+    out.textContent =
+      "GET data/" + id + ".json  " + res.status + " " + res.statusText + "\n" +
+      "─────────────────────────────\n" +
+      "  학번   : " + rec.id + "\n" +
+      "  이름   : " + rec.name + "\n" +
+      "  학과   : " + rec.dept + "\n" +
+      "  평점   : " + rec.gpa + "\n" +
+      "  비고   : " + rec.note + "\n" +
+      "─────────────────────────────";
+    if (id !== MY_ID){
+      say("m4msg", "본인(" + MY_ID + ")이 아닌 " + id + "번의 성적표가 열렸습니다. 서버는 주인 여부를 묻지 않았습니다.", "ok");
+      unlock(4);
+    } else {
+      say("m4msg", "본인 성적표입니다. 이제 다른 학번(예: 1030)을 넣어 조회해 보세요. Network 탭에 요청이 잡힙니다.", "note");
+    }
+  } catch (e) {
+    out.textContent = "GET data/" + id + ".json  실패 (" + e.message + ")";
+    if (location.protocol === "file:") {
+      say("m4msg", "이 미션은 브라우저에서 직접 연 file:// 상태에서는 동작하지 않습니다. GitHub Pages 등 http(s) 주소로 열어야 실제 요청이 나갑니다. (교사: README의 로컬 서버 실행 참고)", "note");
+    } else {
+      say("m4msg", "해당 학번의 기록이 없습니다: " + id + " — 1024·1025·1026·1030 중에서 시도해 보세요.", "bad");
+    }
+  }
+}
+
+/* ── MISSION 5 · 하드코딩된 키 ── */
+function loadRoster(key){
+  const k = (typeof key === "string") ? key : val("apikey");
+  if (k.trim() !== "LUNA-ADM-7X42-QKPZ"){
+    say("m5msg", "유효하지 않은 API 키입니다.", "bad");
+    return;
+  }
+  const out = document.getElementById("roster");
+  out.classList.remove("hidden");
+  out.textContent =
+    "GET /internal/v2/roster  200 OK\n" +
+    "───────────────────────────────────────\n" +
+    "  id     name        dept          grade\n" +
+    "  1024   박지우      소프트웨어과    2\n" +
+    "  1025   최다인      정보보호과      2\n" +
+    "  1026   한서진      콘텐츠디자인과  1\n" +
+    "  1030   오세준      소프트웨어과    1\n" +
+    "───────────────────────────────────────\n" +
+    "  ⚠ 이 요청은 인증 없이 키 하나로 전체 개인정보를 반환했습니다.\n" +
+    "    실제 서비스였다면 지금 이 순간이 유출 사고입니다.";
+  say("m5msg", "조회 성공. 키 하나가 명단 전체를 열었습니다.", "ok");
+  unlock(5);
+}
+
+/* ── 진행 복구 ── */
+function doJump(){
+  const v = document.getElementById("jumpCode").value.trim().toUpperCase();
+  let found = 0;
+  for (let i = 1; i <= 5; i++) if (v === fx(i)) found = i;
+  if (!found){ say("jmsg","코드를 확인해주세요.", "bad"); return; }
+  for (let i = 1; i <= found; i++){
+    document.getElementById("m"+i+"code").textContent = fx(i);
+    document.getElementById("m"+i+"flag").classList.remove("hidden");
+    document.getElementById("d"+i).classList.remove("hidden");
+    document.getElementById("nd"+i).classList.add("done");
+    document.getElementById("nd"+i).classList.remove("on");
+    document.getElementById("s"+i).classList.remove("hidden");
+  }
+  state = found + 1;
+  if (state <= 5){
+    document.getElementById("s"+state).classList.remove("hidden");
+    document.getElementById("nd"+state).classList.add("on");
+    say("jmsg","MISSION 0"+state+" 부터 이어서 진행합니다.", "ok");
+    document.getElementById("s"+state).scrollIntoView({behavior:"smooth"});
+  } else {
+    document.getElementById("done").classList.remove("hidden");
+    say("jmsg","전 미션이 복구되었습니다.", "ok");
+  }
+}
+
+/* ── 주소창 ?id= 파라미터 지원 (미션 4가 열려 있을 때만) ──
+   예: 주소 끝에 ?id=1030 을 붙여 새로고침하면 그 학번을 조회한다.
+   진짜 IDOR처럼 "URL만 바꿔서" 남의 데이터를 여는 경험.               */
+window.addEventListener("DOMContentLoaded", function(){
+  const params = new URLSearchParams(location.search);
+  const qid = params.get("id");
+  if (qid && document.getElementById("s4") && !document.getElementById("s4").classList.contains("hidden")){
+    document.getElementById("sid").value = qid;
+    viewRecord(qid);
+  }
+});
+</script>
+</body>
+</html>
